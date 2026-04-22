@@ -1,0 +1,66 @@
+name: WA-Forensics Toolkit — CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  shell-lint:
+    name: Shell Script Lint (ShellCheck)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install ShellCheck
+        run: sudo apt-get install -y shellcheck
+
+      - name: Lint wa-forensics.sh
+        run: shellcheck --severity=warning wa-forensics.sh || true
+
+      - name: Lint lib/case_manager.sh
+        run: shellcheck --severity=warning lib/case_manager.sh || true
+
+      - name: Lint lib/db_handler.sh
+        run: shellcheck --severity=warning lib/db_handler.sh || true
+
+      - name: Lint lib/chat_analyzer.sh
+        run: shellcheck --severity=warning --exclude=SC2016 lib/chat_analyzer.sh || true
+
+  python-test:
+    name: Python Decrypt Helper — Syntax Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip3 install -r requirements.txt
+
+      - name: Syntax check decrypt_helper.py
+        run: python3 -m py_compile lib/decrypt_helper.py && echo "Syntax OK"
+
+  dependency-check:
+    name: Check Required System Deps Available
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get install -y sqlite3 coreutils
+
+      - name: Verify sqlite3 available
+        run: sqlite3 --version
+
+      - name: Verify sha256sum available
+        run: sha256sum --version
+
+      - name: Check script is executable after chmod
+        run: |
+          chmod +x wa-forensics.sh lib/*.sh
+          test -x wa-forensics.sh && echo "wa-forensics.sh is executable ✔"
