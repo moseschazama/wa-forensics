@@ -825,15 +825,15 @@ Malawi Institute of Technology — Computer Systems and Security, Group 9
 | Name | Student ID | Role |
 |---|---|---|
 | Mzati Tembo | CSS-108-22 | Project Lead / Lead Developer |
-| Moses Chazama | CSS-016-22 | Database Handler & Acquisition |
+| Moses Chazama | CSS-016-22 | Database Handler & scripting |
 | George Kalua | CSS-022-22 | Chat Analyzer Engine |
 | Hope Abasi | CSS-013-22 | Report Generator |
-| Jesse Mbekeani | 3232011 | Case Manager Module |
+| Jesse Mbekeani | 3232011 | Acquisition|
 | Madalitso Saulos | CSS-030-22 | Testing & Validation |
 | Ruth Banda | CIS-001-20 | Documentation & Legal Framework |
 | Upendo Mzumara | CSS-009-22 | System Architecture & Integration |
 
-**Supervisor:** Mr. Kumbukani Lisilira
+**Supervisor:** Mr. Kondwani Zolomondo
 
 **Acknowledgements:**
 
