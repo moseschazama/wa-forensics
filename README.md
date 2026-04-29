@@ -148,8 +148,6 @@ The toolkit consolidates what previously required **four or more separate tools*
 | Q4 | **Media Reconstruction** | Catalogues all shared files: images, video, audio, documents | Establishes what digital assets were transmitted |
 | Q5 | **Deleted Message Detection** | Recovers soft-deleted messages from orphaned database rows | Recovers evidence that suspects attempted to conceal |
 | Q6 | **URL Extraction** | Extracts all links shared in conversations | Identifies external platforms, fraud sites, or coordination channels |
-| Q7 | **Master Timeline** | Chronologically orders all events across all chats | Provides a single narrative of digital activity |
-| Q8 | **WAL Journal Recovery** | Parses SQLite Write-Ahead Log for uncommitted transactions | Recovers messages deleted before WAL checkpoint |
 
 ### 4.4 Key Technical Features
 
