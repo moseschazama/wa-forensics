@@ -12,7 +12,7 @@ validate_database() {
         return 1
     fi
     
-    local size=$(stat -c%s "$db_path" 2>/dev/null || stat -f%z "$db_path" 2>/dev/null || echo 0)
+    local size=$(cross_file_size "$db_path" 2>/dev/null || echo 0)
     if [[ "$size" -eq 0 ]]; then
         print_err "File is empty: $db_path"
         return 1
@@ -33,11 +33,11 @@ validate_database() {
     fi
     
     # Compute hashes
-    local sha256=$(sha256sum "$db_path" | awk '{print $1}')
-    local md5=$(md5sum "$db_path" | awk '{print $1}')
+    local sha256=$(cross_sha256sum "$db_path")
+    local md5=$(cross_md5sum "$db_path")
     
     print_ok "Database validated: ${label}"
-    print_info "Size: $(numfmt --to=iec-i --suffix=B "$size" 2>/dev/null || echo "${size} bytes")"
+    print_info "Size: $(cross_human_size "$size")"
     print_info "SHA-256: $sha256"
     print_info "MD5: $md5"
     
@@ -209,7 +209,7 @@ load_databases_interactive() {
             auto_discover_databases
             echo ""
             print_info "Review found databases above and enter paths manually."
-            ;&
+            ;;
         2)
             print_step "Loading msgstore.db (chat database)..."
             if ! prompt_database "msgstore.db" MSGSTORE_DB; then
