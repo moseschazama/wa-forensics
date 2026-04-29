@@ -2,6 +2,15 @@
 
 # WhatsApp Forensics Acquisition Script
 # For use with rooted Android emulator
+# Cross-platform compatible (macOS + Linux)
+
+# ── Resolve toolkit root directory ───────────────────────────────────────────
+# This script lives in lib/, so SCRIPT_DIR must point to the parent (toolkit root)
+TOOLKIT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+LIB_DIR="${TOOLKIT_DIR}/lib"
+
+# ── Load cross-platform helpers ───────────────────────────────────────────────
+source "${LIB_DIR}/cross_platform.sh" 2>/dev/null || true
 
 # Color codes — inherit from wa-forensics.sh if available, else define own
 GREEN="${GREEN:-\033[0;32m}"
@@ -15,8 +24,7 @@ NC="${NC:-\033[0m}"
 # ── Resolve where to save acquired evidence ───────────────────────────────────
 # When called from wa-forensics.sh: CASE_DIR and CASES_ROOT are already exported.
 # Evidence goes INTO the existing case folder so the parent toolkit can find it.
-# When run standalone: create a timestamped folder next to this script.
-SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+# When run standalone: create a timestamped folder next to the toolkit root.
 
 if [[ -n "${CASE_DIR:-}" && -d "${CASE_DIR}" ]]; then
     # Running inside wa-forensics.sh — use the already-created case folder
@@ -27,7 +35,7 @@ elif [[ -n "${CASES_ROOT:-}" ]]; then
     mkdir -p "$CASE_FOLDER"
 else
     # Standalone mode
-    CASE_FOLDER="${SCRIPT_DIR}/case_$(date +%Y%m%d_%H%M%S)"
+    CASE_FOLDER="${TOOLKIT_DIR}/case_$(date +%Y%m%d_%H%M%S)"
     mkdir -p "$CASE_FOLDER"
 fi
 mkdir -p "$CASE_FOLDER/media"
@@ -148,13 +156,13 @@ echo -e "\n${YELLOW}━━━━━━━━━━━━━━━━━━━━
 echo -e "${GREEN}[*] Generating SHA256 hash values...${NC}"
 
 if [ -d "$CASE_FOLDER/com.whatsapp" ]; then
-    HASH_APP_DATA=$(tar -c "$CASE_FOLDER/com.whatsapp" 2>/dev/null | sha256sum | cut -d' ' -f1)
+    HASH_APP_DATA=$(tar -c "$CASE_FOLDER/com.whatsapp" 2>/dev/null | cross_sha256sum)
 else
     HASH_APP_DATA="FOLDER_NOT_FOUND"
 fi
 
 if [ -d "$CASE_FOLDER/media/com.whatsapp" ]; then
-    HASH_MEDIA=$(tar -c "$CASE_FOLDER/media/com.whatsapp" 2>/dev/null | sha256sum | cut -d' ' -f1)
+    HASH_MEDIA=$(tar -c "$CASE_FOLDER/media/com.whatsapp" 2>/dev/null | cross_sha256sum)
 else
     HASH_MEDIA="FOLDER_NOT_FOUND"
 fi

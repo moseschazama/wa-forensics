@@ -3,6 +3,15 @@
 # Integrity Verification Script for WhatsApp Forensics
 # Includes write protection verification
 # Runs before loading databases
+# Cross-platform compatible (macOS + Linux)
+
+# ── Resolve toolkit root directory ───────────────────────────────────────────
+# This script lives in lib/, so TOOLKIT_DIR points to the parent
+TOOLKIT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+LIB_DIR="${TOOLKIT_DIR}/lib"
+
+# ── Load cross-platform helpers ───────────────────────────────────────────────
+source "${LIB_DIR}/cross_platform.sh" 2>/dev/null || true
 
 # Color codes — use exported values from wa-forensics.sh if available, else define own
 GREEN="${GREEN:-\033[0;32m}"
@@ -25,7 +34,7 @@ show_banner() {
 check_case_folder() {
     if [ -z "$1" ]; then
         echo -e "${RED}[-] Please provide the case folder path${NC}"
-        echo -e "${YELLOW}Usage: ./Integrity.sh /path/to/case_folder${NC}"
+        echo -e "${YELLOW}Usage: ./wa-forensics.sh (or: bash lib/integrity.sh /path/to/case_folder)${NC}"
         return 1
     fi
     if [ ! -d "$1" ]; then
@@ -87,7 +96,7 @@ verify_app_data() {
     echo -e "${BLUE}[*] Original App Data Hash:${NC} ${YELLOW}$ORIGINAL_APP_HASH${NC}"
     echo -e "${BLUE}[*] Recalculating current App Data hash...${NC}"
 
-    CURRENT_APP_HASH=$(tar -c "$case_folder/com.whatsapp" 2>/dev/null | sha256sum | cut -d' ' -f1)
+    CURRENT_APP_HASH=$(tar -c "$case_folder/com.whatsapp" 2>/dev/null | cross_sha256sum)
 
     if [ -z "$CURRENT_APP_HASH" ]; then
         echo -e "${RED}[✗] Failed to calculate current hash${NC}"
@@ -137,7 +146,7 @@ verify_media() {
     echo -e "${BLUE}[*] Original Media Hash:${NC} ${YELLOW}$ORIGINAL_MEDIA_HASH${NC}"
     echo -e "${BLUE}[*] Recalculating current Media hash...${NC}"
 
-    CURRENT_MEDIA_HASH=$(tar -c "$case_folder/media/com.whatsapp" 2>/dev/null | sha256sum | cut -d' ' -f1)
+    CURRENT_MEDIA_HASH=$(tar -c "$case_folder/media/com.whatsapp" 2>/dev/null | cross_sha256sum)
 
     if [ -z "$CURRENT_MEDIA_HASH" ]; then
         echo -e "${RED}[✗] Failed to calculate current hash${NC}"
@@ -241,7 +250,7 @@ fi
 echo -e "\n${CYAN}Case Information:${NC}"
 echo -e "  Folder  : $CASE_FOLDER"
 echo -e "  Size    : $(du -sh "$CASE_FOLDER" 2>/dev/null | cut -f1)"
-echo -e "  Modified: $(stat -c %y "$CASE_FOLDER" 2>/dev/null | cut -d'.' -f1)"
+echo -e "  Modified: $(cross_file_moddate "$CASE_FOLDER")"
 
 # Write-protection check (now CASE_FOLDER is confirmed valid)
 verify_write_protection

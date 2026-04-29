@@ -11,13 +11,13 @@ Department of Computer Systems & Security · Group 9
 
 ---
 
-[![Version](https://img.shields.io/badge/version-9.0.0-blue?style=for-the-badge&logo=github)](https://github.com/MUST-CS-Group9/wa-forensics)
+[![Version](https://img.shields.io/badge/version-9.0.0-blue?style=for-the-badge&logo=github)](https://github.com/moseschazama/wa-forensics)
 [![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Ubuntu%2022.04+-lightgrey?style=for-the-badge&logo=linux)](https://ubuntu.com)
 [![Shell](https://img.shields.io/badge/shell-Bash%205.x-brightgreen?style=for-the-badge&logo=gnubash)](https://www.gnu.org/software/bash/)
 [![SQLite](https://img.shields.io/badge/database-SQLite3-orange?style=for-the-badge&logo=sqlite)](https://www.sqlite.org)
 [![ACPO](https://img.shields.io/badge/compliance-ACPO%20Compliant-critical?style=for-the-badge)](https://www.college.police.uk)
-[![Status](https://img.shields.io/badge/status-Production%20Ready-success?style=for-the-badge)](https://github.com/MUST-CS-Group9/wa-forensics)
+[![Status](https://img.shields.io/badge/status-Production%20Ready-success?style=for-the-badge)](https://github.com/moseschazama/wa-forensics)
 
 </div>
 

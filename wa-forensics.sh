@@ -1,28 +1,84 @@
 #!/usr/bin/env bash
 # =============================================================================
 #  WHATSAPP-FORENSICS TOOLKIT v9.0 — WhatsApp Digital Forensic Suite
+#  Single entry point for macOS and Linux
 # =============================================================================
 
 set -uo pipefail
 IFS=$'\n\t'
 
 # ─────────────────────────────────────────────────────────────────────────────
-# GLOBALS & CONFIGURATION
+# BOOTSTRAP — Auto-install and activate Python virtual environment
 # ─────────────────────────────────────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export SCRIPT_DIR
 
-# Define module scripts
-MODULE_ACQUISITION="${SCRIPT_DIR}/Acquisition.sh"
-MODULE_INTEGRITY="${SCRIPT_DIR}/Integrity.sh"
-MODULE_ANALYSIS="${SCRIPT_DIR}/Analysis.sh"
-export MODULE_ACQUISITION MODULE_INTEGRITY MODULE_ANALYSIS
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+RESET='\033[0m'
+BOLD='\033[1m'
 
+bootstrap() {
+    local venv_dir="${SCRIPT_DIR}/.venv"
+
+    if [[ ! -d "$venv_dir" ]] || [[ ! -f "${venv_dir}/bin/activate" ]]; then
+        echo -e "${BOLD}${CYAN}"
+        echo "╔══════════════════════════════════════════════════════╗"
+        echo "║  WA-Forensics Toolkit — First-Time Setup            ║"
+        echo "╚══════════════════════════════════════════════════════╝"
+        echo -e "${RESET}"
+        echo -e "${CYAN}[ℹ] Toolkit not yet installed. Running installer...${RESET}"
+        echo ""
+
+        if [[ ! -f "${SCRIPT_DIR}/install.sh" ]]; then
+            echo -e "${RED}[✘] install.sh not found. Please reinstall the toolkit.${RESET}"
+            exit 1
+        fi
+
+        bash "${SCRIPT_DIR}/install.sh"
+        if [[ $? -ne 0 ]]; then
+            echo -e "${RED}[✘] Installation failed. Please check the errors above.${RESET}"
+            exit 1
+        fi
+        echo ""
+    fi
+
+    # Activate virtual environment
+    local venv_path=""
+    if [[ -f "${SCRIPT_DIR}/.venv_path" ]]; then
+        venv_path=$(cat "${SCRIPT_DIR}/.venv_path")
+    fi
+
+    if [[ -n "$venv_path" ]] && [[ -f "${venv_path}/bin/activate" ]]; then
+        source "${venv_path}/bin/activate"
+    elif [[ -f "${SCRIPT_DIR}/.venv/bin/activate" ]]; then
+        source "${SCRIPT_DIR}/.venv/bin/activate"
+    fi
+
+    export VIRTUAL_ENV
+}
+
+bootstrap
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GLOBALS & CONFIGURATION
+# ─────────────────────────────────────────────────────────────────────────────
+# SCRIPT_DIR already set in bootstrap, re-export for clarity
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export SCRIPT_DIR
+
+# Core directories
 CASES_ROOT="${SCRIPT_DIR}/cases"
 LIB_DIR="${SCRIPT_DIR}/lib"
 TEMPLATES_DIR="${SCRIPT_DIR}/templates"
-
 export CASES_ROOT LIB_DIR TEMPLATES_DIR
+
+# Module scripts
+MODULE_ACQUISITION="${LIB_DIR}/acquisition.sh"
+MODULE_INTEGRITY="${LIB_DIR}/integrity.sh"
+export MODULE_ACQUISITION MODULE_INTEGRITY
 
 TOOLKIT_VERSION="9.0.0"
 export TOOLKIT_VERSION
@@ -79,6 +135,9 @@ export RED GREEN YELLOW CYAN BLUE MAGENTA WHITE RESET BOLD DIM NC
 # ─────────────────────────────────────────────────────────────────────────────
 # SOURCE MODULES
 # ─────────────────────────────────────────────────────────────────────────────
+source "${LIB_DIR}/cross_platform.sh" 2>/dev/null || {
+    echo "WARNING: Cannot find cross_platform.sh - some features may not work"
+}
 source "${LIB_DIR}/case_manager.sh" 2>/dev/null || {
     echo "ERROR: Cannot find case_manager.sh"
     exit 1
@@ -171,13 +230,27 @@ check_dependencies() {
     local missing=()
     
     # Check required system commands
-    for cmd in sqlite3 sha256sum md5sum date awk sed grep python3; do
+    for cmd in sqlite3 date awk sed grep python3; do
         command -v "$cmd" &>/dev/null || missing+=("$cmd")
     done
     
+    # Check for SHA-256 tool (platform-specific)
+    if ! command -v sha256sum &>/dev/null && ! command -v shasum &>/dev/null; then
+        missing+=("sha256sum or shasum")
+    fi
+    
+    # Check for MD5 tool (platform-specific)
+    if ! command -v md5sum &>/dev/null && ! command -v md5 &>/dev/null; then
+        missing+=("md5sum or md5")
+    fi
+    
     if [[ ${#missing[@]} -gt 0 ]]; then
         print_err "Missing required tools: ${missing[*]}"
-        print_info "Run: sudo apt-get install sqlite3 coreutils python3"
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            print_info "Run: brew install sqlite3 python3"
+        else
+            print_info "Run: sudo apt-get install sqlite3 coreutils python3"
+        fi
         exit 1
     fi
     
@@ -185,27 +258,20 @@ check_dependencies() {
     
     # Check for optional external modules
     echo ""
-    print_info "Scanning for external modules..."
+    print_info "Scanning for modules..."
     
-    echo -n "  Acquisition Module (Acquisition.sh) .... "
+    echo -n "  Acquisition Module .... "
     if [[ -f "$MODULE_ACQUISITION" ]]; then
-        echo -e "${GREEN}✓ FOUND${RESET}"
+        echo -e "${GREEN}FOUND${RESET}"
     else
-        echo -e "${YELLOW}○ NOT FOUND (auto-acquisition disabled)${RESET}"
+        echo -e "${YELLOW}NOT FOUND (auto-acquisition disabled)${RESET}"
     fi
     
-    echo -n "  Integrity Module (Integrity.sh) ........ "
+    echo -n "  Integrity Module ...... "
     if [[ -f "$MODULE_INTEGRITY" ]]; then
-        echo -e "${GREEN}✓ FOUND${RESET}"
+        echo -e "${GREEN}FOUND${RESET}"
     else
-        echo -e "${YELLOW}○ NOT FOUND (auto-verification disabled)${RESET}"
-    fi
-    
-    echo -n "  Analysis Module (Analysis.sh) .......... "
-    if [[ -f "$MODULE_ANALYSIS" ]]; then
-        echo -e "${GREEN}✓ FOUND${RESET}"
-    else
-        echo -e "${YELLOW}○ NOT FOUND${RESET}"
+        echo -e "${YELLOW}NOT FOUND (auto-verification disabled)${RESET}"
     fi
     
     echo ""
@@ -617,9 +683,7 @@ run_acquisition_module() {
     
     if [[ ! -f "$MODULE_ACQUISITION" ]]; then
         print_err "Acquisition module not found: ${MODULE_ACQUISITION}"
-        echo -e "${YELLOW}  Place Acquisition.sh in the same directory as wa-forensics.sh${NC}"
-        echo -e "${YELLOW}  Expected location: ${SCRIPT_DIR}/Acquisition.sh${NC}"
-        log_action "MODULE NOT FOUND" "Acquisition.sh" "FAILED"
+        log_action "MODULE NOT FOUND" "acquisition.sh" "FAILED"
         return 1
     fi
     
@@ -627,11 +691,8 @@ run_acquisition_module() {
     echo -e "${CYAN}  This will connect to emulator and extract WhatsApp data${NC}"
     echo ""
     
-    # Make executable
     chmod +x "$MODULE_ACQUISITION" 2>/dev/null
     
-    # Execute acquisition script — export CASE_DIR/CASES_ROOT/SCRIPT_DIR so
-    # Acquisition.sh writes evidence into the existing case folder, not CWD
     CASE_DIR="$CASE_DIR" CASES_ROOT="$CASES_ROOT" SCRIPT_DIR="$SCRIPT_DIR" \
         bash "$MODULE_ACQUISITION"
     local result=$?
@@ -639,13 +700,9 @@ run_acquisition_module() {
     if [[ $result -eq 0 ]]; then
         print_ok "Acquisition module completed successfully"
 
-        # CASE_DIR was pre-set and Acquisition.sh wrote into it — just confirm.
-        # If somehow unset (standalone sub-case), find the newest folder created.
         if [[ -z "${CASE_DIR:-}" ]] || [[ ! -d "${CASE_DIR}" ]]; then
             local latest_case
             latest_case=$(ls -td "${CASES_ROOT}"/case_* 2>/dev/null | head -1)
-            [[ -z "$latest_case" ]] && \
-                latest_case=$(ls -td "${SCRIPT_DIR}"/case_* 2>/dev/null | head -1)
             if [[ -n "$latest_case" && -d "$latest_case" ]]; then
                 CASE_DIR="$latest_case"
                 CURRENT_CASE=$(basename "$latest_case")
@@ -672,9 +729,7 @@ run_integrity_module() {
     
     if [[ ! -f "$MODULE_INTEGRITY" ]]; then
         print_err "Integrity module not found: ${MODULE_INTEGRITY}"
-        echo -e "${YELLOW}  Place Integrity.sh in the same directory as wa-forensics.sh${NC}"
-        echo -e "${YELLOW}  Expected location: ${SCRIPT_DIR}/Integrity.sh${NC}"
-        log_action "MODULE NOT FOUND" "Integrity.sh" "FAILED"
+        log_action "MODULE NOT FOUND" "integrity.sh" "FAILED"
         return 1
     fi
     
@@ -689,18 +744,15 @@ run_integrity_module() {
     echo -e "${CYAN}  Verifying SHA-256 hashes and write protection${NC}"
     echo ""
     
-    # Make executable
     chmod +x "$MODULE_INTEGRITY" 2>/dev/null
     
-    # Execute integrity script with case folder as argument
     bash "$MODULE_INTEGRITY" "${CASE_DIR}"
     local result=$?
     
     if [[ $result -eq 0 ]]; then
-        print_ok "✓ INTEGRITY VERIFICATION PASSED"
+        print_ok "INTEGRITY VERIFICATION PASSED"
         echo -e "${GREEN}  Evidence is forensically sound - no tampering detected${NC}"
         
-        # Create verification flag file
         local flag_file="${CASE_DIR}/.integrity_verified"
         cat > "$flag_file" <<EOF
 INTEGRITY VERIFICATION RECORD
@@ -709,7 +761,7 @@ Verified: $(date '+%Y-%m-%d %H:%M:%S')
 Case: ${CURRENT_CASE}
 Case Folder: ${CASE_DIR}
 Analyst: ${INVESTIGATOR:-Unknown}
-Module: Integrity.sh
+Module: integrity.sh
 Result: PASSED
 Session: ${SESSION_ID}
 EOF
@@ -717,19 +769,17 @@ EOF
         log_action "INTEGRITY MODULE" "${CASE_DIR}" "SUCCESS"
         return 0
     else
-        print_err "✗ INTEGRITY VERIFICATION FAILED"
+        print_err "INTEGRITY VERIFICATION FAILED"
         echo ""
-        echo -e "${RED}╔════════════════════════════════════════════════════════════╗${NC}"
-        echo -e "${RED}║  ⚠️  EVIDENCE INTEGRITY COMPROMISED                       ║${NC}"
-        echo -e "${RED}║  The acquired data has been modified or corrupted         ║${NC}"
-        echo -e "${RED}║  DO NOT use this evidence for analysis                    ║${NC}"
-        echo -e "${RED}╚════════════════════════════════════════════════════════════╝${NC}"
+        echo -e "${RED}EVIDENCE INTEGRITY COMPROMISED${NC}"
+        echo -e "${RED}  The acquired data has been modified or corrupted${NC}"
+        echo -e "${RED}  DO NOT use this evidence for analysis${NC}"
         echo ""
         echo -e "${YELLOW}  Possible causes:${NC}"
-        echo "    • Files modified after acquisition"
-        echo "    • Storage corruption or disk errors"
-        echo "    • Incomplete or interrupted acquisition"
-        echo "    • Unauthorized access to evidence files"
+        echo "    - Files modified after acquisition"
+        echo "    - Storage corruption or disk errors"
+        echo "    - Incomplete or interrupted acquisition"
+        echo "    - Unauthorized access to evidence files"
         echo ""
         echo -e "${YELLOW}  Recommended actions:${NC}"
         echo "    1. Re-acquire evidence from original source"
@@ -737,7 +787,7 @@ EOF
         echo "    3. Do NOT perform analysis on this case"
         echo ""
         
-        log_action "INTEGRITY MODULE" "${CASE_DIR}" "FAILED — Evidence tampered"
+        log_action "INTEGRITY MODULE" "${CASE_DIR}" "FAILED - Evidence tampered"
         return 1
     fi
 }

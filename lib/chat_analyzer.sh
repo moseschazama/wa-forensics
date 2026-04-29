@@ -6,6 +6,9 @@
 #  Version: 11.0 - Final Production Release
 # =============================================================================
 
+# ── Load cross-platform helpers ───────────────────────────────────────────────
+source "${LIB_DIR}/cross_platform.sh" 2>/dev/null || true
+
 # Auto-detect table names (WhatsApp changed schema over versions)
 detect_message_table() {
     local db="$1"
@@ -326,9 +329,7 @@ analyze_activity_profiling() {
     echo ""
     
     # Open in browser (in background)
-    if command -v xdg-open &>/dev/null; then 
-        xdg-open "$outfile" 2>/dev/null &
-    fi
+    cross_open "$outfile" 2>/dev/null &
     
     # Display post-query menu
     echo -e "${CYAN}  ═════════════════════════════════════════════════════════════${RESET}"
@@ -344,8 +345,7 @@ analyze_activity_profiling() {
         case "$choice" in
             1) return 0 ;;
             2)
-                if command -v xdg-open &>/dev/null; then
-                    xdg-open "$outfile" 2>/dev/null &
+                if cross_open "$outfile" 2>/dev/null; then
                     print_ok "Opening report in browser..."
                 else
                     print_warn "No browser found. Report saved at: $outfile"
@@ -821,7 +821,7 @@ display_post_query_menu() {
     echo ""
     read -rp "  > " choice
     case "$choice" in
-        2) command -v xdg-open &>/dev/null && xdg-open "$report_file" 2>/dev/null & pause ;;
+        2) cross_open "$report_file" 2>/dev/null & pause ;;
         3) return 1 ;;
         0) return 0 ;;
         *) return 0 ;;
@@ -849,9 +849,7 @@ display_post_chat_recon_menu() {
     case "$choice" in
         1) return 0 ;;
         2) 
-            if command -v xdg-open &>/dev/null; then 
-                xdg-open "$report_file" 2>/dev/null &
-            fi
+            cross_open "$report_file" 2>/dev/null &
             pause
             ;;
         3) analyze_contact_mapping ;;
@@ -1270,7 +1268,7 @@ analyze_chat_reconstruction() {
     log_action "Q2: Chat Reconstruction" "$MSGSTORE_DB" "SUCCESS"
     
     echo -e "  ${GREEN}✅ HTML Report:${RESET} ${CYAN}$outfile${RESET}"
-    command -v xdg-open &>/dev/null && xdg-open "$outfile" 2>/dev/null &
+    cross_open "$outfile" 2>/dev/null &
     
     # Post-query menu
     echo -e "${CYAN}  ═════════════════════════════════════════════════════════════${RESET}"
@@ -1284,7 +1282,7 @@ analyze_chat_reconstruction() {
     
     case "$choice" in
         1) return 0 ;;
-        2) command -v xdg-open &>/dev/null && xdg-open "$outfile" 2>/dev/null & pause ;;
+        2) cross_open "$outfile" 2>/dev/null & pause ;;
         3) analyze_contact_mapping ;;
         4)
             read -rp "  Enter Chat ID: " dive_id
@@ -1807,7 +1805,7 @@ analyze_contact_mapping() {
     log_action "Q3: Contact Mapping" "wa.db + msgstore.db + jid_map" "SUCCESS"
     
     echo -e "  ${GREEN}✅ HTML Report:${RESET} ${CYAN}$outfile${RESET}"
-    command -v xdg-open &>/dev/null && xdg-open "$outfile" 2>/dev/null &
+    cross_open "$outfile" 2>/dev/null &
     
     echo -e "${CYAN}  ═════════════════════════════════════════════════════════════${RESET}"
     echo -e "${YELLOW}  📌 What would you like to do next?${RESET}"
@@ -1821,7 +1819,7 @@ analyze_contact_mapping() {
     read -rp "  > " choice
     case "$choice" in
         1) return 0 ;;
-        2) command -v xdg-open &>/dev/null && xdg-open "$outfile" 2>/dev/null & pause ;;
+        2) cross_open "$outfile" 2>/dev/null & pause ;;
         3) search_by_phone ;;
         4)
             read -rp "  Enter Chat ID: " dive_id
@@ -2650,7 +2648,7 @@ analyze_media_reconstruction() {
     log_action "Q4: Media Reconstruction" "$MSGSTORE_DB" "SUCCESS"
     
     echo -e "\n  ${GREEN}✅ HTML Report:${RESET} ${CYAN}$outfile${RESET}"
-    command -v xdg-open &>/dev/null && xdg-open "$outfile" 2>/dev/null &
+    cross_open "$outfile" 2>/dev/null &
     display_post_query_menu "Q4" "$outfile"
 }
 
@@ -3307,7 +3305,7 @@ analyze_deleted_messages() {
     echo ""
     
     if [[ -f "${MSGSTORE_DB}-wal" ]]; then
-        local wal_size=$(stat -c%s "${MSGSTORE_DB}-wal" 2>/dev/null || stat -f%z "${MSGSTORE_DB}-wal" 2>/dev/null)
+        local wal_size=$(cross_file_size "${MSGSTORE_DB}-wal" 2>/dev/null)
         echo -e "${BOLD}${WHITE}  💾 WAL FILE DETECTED:${RESET} ${GREEN}${MSGSTORE_DB}-wal${RESET} (${wal_size} bytes)"
         echo -e "${CYAN}  ┌──────────────────────────────────────────────────────────────────────────────────────────────────────────┐${RESET}"
         echo -e "${CYAN}  │${RESET} ${YELLOW}📋 HOW TO RECOVER DELETED MESSAGES FROM WAL:${RESET}"
@@ -3322,7 +3320,7 @@ analyze_deleted_messages() {
     log_action "Q5: Deleted Messages" "$MSGSTORE_DB" "SUCCESS"
     
     echo -e "  ${GREEN}✅ HTML Report:${RESET} ${CYAN}$outfile${RESET}"
-    command -v xdg-open &>/dev/null && xdg-open "$outfile" 2>/dev/null &
+    cross_open "$outfile" 2>/dev/null &
     
     echo -e "${CYAN}  ═════════════════════════════════════════════════════════════${RESET}"
     echo -e "${YELLOW}  📌 What would you like to do next?${RESET}"
@@ -3335,7 +3333,7 @@ analyze_deleted_messages() {
     read -rp "  > " choice
     case "$choice" in
         1) return 0 ;;
-        2) command -v xdg-open &>/dev/null && xdg-open "$outfile" 2>/dev/null & pause ;;
+        2) cross_open "$outfile" 2>/dev/null & pause ;;
         3)
             local csvfile="${CASE_DIR}/reports/Q5_deleted_messages.csv"
             sqlite3 -readonly -csv -header "$MSGSTORE_DB" "
@@ -3623,7 +3621,7 @@ analyze_url_extraction() {
     log_action "Q6: URL Extraction" "$MSGSTORE_DB" "SUCCESS"
     
     echo -e "\n  ${GREEN}✅ HTML Report:${RESET} ${CYAN}$outfile${RESET}"
-    command -v xdg-open &>/dev/null && xdg-open "$outfile" 2>/dev/null &
+    cross_open "$outfile" 2>/dev/null &
     display_post_query_menu "Q6" "$outfile"
 }
 
@@ -3749,7 +3747,7 @@ analyze_master_timeline() {
     log_action "Q7: Master Timeline" "$MSGSTORE_DB" "SUCCESS"
     
     echo -e "\n  ${GREEN}✅ HTML Report:${RESET} ${CYAN}$outfile${RESET}"
-    command -v xdg-open &>/dev/null && xdg-open "$outfile" 2>/dev/null &
+    cross_open "$outfile" 2>/dev/null &
     display_post_query_menu "Q7" "$outfile"
 }
 
@@ -3810,7 +3808,7 @@ analyze_wal_recovery() {
     echo -e "${CYAN}  ═════════════════════════════════════════════════════════════════════════════════════════════════════════════${RESET}"
     
     if [[ -f "$wal_file" ]]; then
-        local wal_size=$(stat -c%s "$wal_file" 2>/dev/null || stat -f%z "$wal_file" 2>/dev/null)
+        local wal_size=$(cross_file_size "$wal_file" 2>/dev/null)
         echo -e "  ${GREEN}✅ WAL file found:${RESET} $wal_file"
         echo -e "  ${GREEN}   Size:${RESET} $wal_size bytes"
     else
@@ -3846,7 +3844,7 @@ analyze_wal_recovery() {
     log_action "Q8: WAL Recovery" "$MSGSTORE_DB" "SUCCESS"
     
     echo -e "\n  ${GREEN}✅ HTML Report:${RESET} ${CYAN}$outfile${RESET}"
-    command -v xdg-open &>/dev/null && xdg-open "$outfile" 2>/dev/null &
+    cross_open "$outfile" 2>/dev/null &
     display_post_query_menu "Q8" "$outfile"
 }
 
@@ -5055,7 +5053,7 @@ function generatePDF() { window.print(); }
 EOF
 
     print_ok "HTML Report: $outfile"
-    command -v xdg-open &>/dev/null && xdg-open "$outfile" 2>/dev/null &
+    cross_open "$outfile" 2>/dev/null &
     pause
 }
 
@@ -5112,7 +5110,7 @@ export -f build_contact_html_report
 export -f analyze_media_reconstruction
 export -f build_media_html_report
 export -f analyze_deleted_messages
-export -f build_deleted_html_report
+export -f build_deleted_html_simple
 export -f analyze_url_extraction
 export -f build_url_html_report
 export -f analyze_master_timeline

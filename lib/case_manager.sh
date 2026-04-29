@@ -824,10 +824,8 @@ HTMLEOF
     log_action "VIEW ACTIVITY LOG" "$htmlfile" "SUCCESS"
     
     # Open in browser
-    if command -v xdg-open &>/dev/null; then
-        xdg-open "$htmlfile" 2>/dev/null &
-        print_info "Opening report in browser..."
-    fi
+    cross_open "$htmlfile" 2>/dev/null &
+    print_info "Opening report in browser..."
     
     pause
 }
@@ -902,7 +900,7 @@ _filter_log_by_session() {
     
     # Show available sessions
     echo -e "${CYAN}  Available Sessions:${RESET}"
-    grep -oP 'SESSION:\K[A-Za-z0-9-]+' "$logfile" 2>/dev/null | sort -u | nl -w2 -s'. '
+    grep -o 'SESSION:[A-Za-z0-9-]*' "$logfile" 2>/dev/null | sed 's/SESSION://' | sort -u | nl -w2 -s'. '
     echo ""
     
     read -rp "  Enter Session ID (or 0 to go back): " session_filter
@@ -1048,7 +1046,7 @@ _export_log_txt() {
         cat "$logfile"
     } > "$export_file"
     
-    local export_hash=$(sha256sum "$export_file" | awk '{print $1}')
+    local export_hash=$(cross_sha256sum "$export_file")
     echo "SHA-256: ${export_hash}" >> "$export_file"
     
     print_ok "Log exported to: ${export_file}"
