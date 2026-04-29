@@ -49,5 +49,8 @@ Thumbs.db
 *.swo
 *~
 
+#this is to ignore the venv folder which is created when you set up a virtual environment for Python.
+.venv/
+
 # ── Screenshots (added manually, not auto-generated) ─────────────────────────
 # docs/screenshots/*.png  ← Uncomment to also ignore screenshots

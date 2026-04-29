@@ -227,6 +227,138 @@ handle_failure() {
     exit 1
 }
 
+# ── Verify SQLite database integrity ──────────────────────────────────────────
+# Uses PRAGMA integrity_check in read-only mode — never modifies databases
+verify_database_integrity() {
+    local case_folder="$1"
+    local db_path="$case_folder/com.whatsapp/databases"
+    local db_result=0
+
+    echo -e "\n${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${BLUE}[*]       VERIFYING SQLite DATABASE INTEGRITY${NC}"
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+
+    if [ ! -d "$db_path" ]; then
+        echo -e "${RED}[✗] Database directory not found: $db_path${NC}"
+        return 1
+    fi
+
+    # Check if sqlite3 is available
+    if ! command -v sqlite3 &>/dev/null; then
+        echo -e "${RED}[✗] sqlite3 command not found. Please install SQLite3.${NC}"
+        return 1
+    fi
+
+    # Verify msgstore.db
+    if [ -f "$db_path/msgstore.db" ]; then
+        echo -e "${BLUE}[*] Checking msgstore.db...${NC}"
+        local result=$(sqlite3 -readonly "$db_path/msgstore.db" "PRAGMA integrity_check;" 2>&1)
+        if [ "$result" = "ok" ]; then
+            echo -e "${GREEN}[✓] msgstore.db integrity: PASSED${NC}"
+        else
+            echo -e "${RED}[✗] msgstore.db integrity: FAILED${NC}"
+            echo -e "${RED}    Details: $result${NC}"
+            db_result=1
+        fi
+    else
+        echo -e "${YELLOW}[!] msgstore.db not found (may not have messages)${NC}"
+    fi
+
+    # Verify wa.db
+    if [ -f "$db_path/wa.db" ]; then
+        echo -e "${BLUE}[*] Checking wa.db...${NC}"
+        local result=$(sqlite3 -readonly "$db_path/wa.db" "PRAGMA integrity_check;" 2>&1)
+        if [ "$result" = "ok" ]; then
+            echo -e "${GREEN}[✓] wa.db integrity: PASSED${NC}"
+        else
+            echo -e "${RED}[✗] wa.db integrity: FAILED${NC}"
+            echo -e "${RED}    Details: $result${NC}"
+            db_result=1
+        fi
+    else
+        echo -e "${YELLOW}[!] wa.db not found (may not have contacts)${NC}"
+    fi
+
+    if [ $db_result -eq 0 ]; then
+        echo -e "${GREEN}[✓] Database Integrity VERIFIED${NC}"
+        return 0
+    else
+        echo -e "${RED}[✗] Database Integrity FAILED${NC}"
+        return 1
+    fi
+}
+
+# ── Apply write blocking and immutability ─────────────────────────────────────
+# Calls writeblocker.py to chmod evidence read-only and apply immutable flags
+apply_write_blocking() {
+    local case_folder="$1"
+
+    echo -e "\n${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${BLUE}[*]       APPLYING FORENSIC WRITE PROTECTION${NC}"
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+
+    local writeblocker="${TOOLKIT_DIR}/lib/writeblocker.py"
+
+    if [ ! -f "$writeblocker" ]; then
+        echo -e "${RED}[✗] writeblocker.py not found: $writeblocker${NC}"
+        return 1
+    fi
+
+    # Check if python3 is available
+    if ! command -v python3 &>/dev/null; then
+        echo -e "${RED}[✗] python3 command not found. Please install Python3.${NC}"
+        return 1
+    fi
+
+    echo -e "${BLUE}[*] Applying read-only permissions (chmod 444)...${NC}"
+    python3 "$writeblocker" "$case_folder" 2>&1
+    local write_block_result=$?
+
+    if [ $write_block_result -eq 0 ]; then
+        echo -e "${GREEN}[✓] Write Protection APPLIED${NC}"
+        return 0
+    else
+        echo -e "${YELLOW}[!] Write protection completed with warnings${NC}"
+        # Don't fail hard—immutability may not be supported on all filesystems
+        return 0
+    fi
+}
+
+# ── Log integrity checkpoint to chain of custody ───────────────────────────────
+log_integrity_checkpoint() {
+    local case_folder="$1"
+    local checkpoint_type="$2"
+    local status="$3"
+    local details="$4"
+    local coc_file="$case_folder/chain_of_custody.log"
+
+    local timestamp=$(date "+%Y-%m-%d %H:%M:%S")
+    local operator="${OPERATOR:-system}"
+
+    # Initialize log file if needed
+    if [ ! -f "$coc_file" ]; then
+        {
+            echo "═══════════════════════════════════════════════════════════════"
+            echo "CHAIN OF CUSTODY LOG"
+            echo "═══════════════════════════════════════════════════════════════"
+            echo "Case: $case_folder"
+            echo "Created: $(date)"
+            echo "═══════════════════════════════════════════════════════════════"
+        } > "$coc_file"
+    fi
+
+    # Append checkpoint entry
+    {
+        echo ""
+        echo "[${timestamp}] CHECKPOINT: $checkpoint_type"
+        echo "  Status: $status"
+        if [ -n "$details" ]; then
+            echo "  Details: $details"
+        fi
+        echo "  Operator: $operator"
+    } >> "$coc_file"
+}
+
 # ═════════════════════════════════════════════════════════════════════════════
 # MAIN EXECUTION
 # ═════════════════════════════════════════════════════════════════════════════
@@ -254,16 +386,48 @@ echo -e "  Modified: $(cross_file_moddate "$CASE_FOLDER")"
 
 # Write-protection check (now CASE_FOLDER is confirmed valid)
 verify_write_protection
+log_integrity_checkpoint "$CASE_FOLDER" "WRITE_PROTECTION" "CHECKED" || true
 
-# Hash verification
+# Hash verification — App Data
 verify_app_data "$CASE_FOLDER"
 APP_RESULT=$?
+if [ $APP_RESULT -eq 0 ]; then
+    log_integrity_checkpoint "$CASE_FOLDER" "APP_DATA_INTEGRITY" "PASSED" "SHA256 hash match verified" || true
+else
+    log_integrity_checkpoint "$CASE_FOLDER" "APP_DATA_INTEGRITY" "FAILED" "Hash mismatch detected" || true
+fi
 
+# Hash verification — Media
 verify_media "$CASE_FOLDER"
 MEDIA_RESULT=$?
+if [ $MEDIA_RESULT -eq 0 ]; then
+    log_integrity_checkpoint "$CASE_FOLDER" "MEDIA_INTEGRITY" "PASSED" "SHA256 hash match verified" || true
+else
+    log_integrity_checkpoint "$CASE_FOLDER" "MEDIA_INTEGRITY" "FAILED" "Hash mismatch detected" || true
+fi
+
+# Database integrity check
+verify_database_integrity "$CASE_FOLDER"
+DB_RESULT=$?
+if [ $DB_RESULT -eq 0 ]; then
+    log_integrity_checkpoint "$CASE_FOLDER" "DATABASE_INTEGRITY" "PASSED" "PRAGMA integrity_check passed for all databases" || true
+else
+    log_integrity_checkpoint "$CASE_FOLDER" "DATABASE_INTEGRITY" "FAILED" "Database corruption detected" || true
+fi
+
+# Apply write blocking if all previous checks passed
+if [ $APP_RESULT -eq 0 ] && [ $MEDIA_RESULT -eq 0 ] && [ $DB_RESULT -eq 0 ]; then
+    apply_write_blocking "$CASE_FOLDER"
+    WB_RESULT=$?
+    if [ $WB_RESULT -eq 0 ]; then
+        log_integrity_checkpoint "$CASE_FOLDER" "WRITE_BLOCKING" "APPLIED" "Read-only permissions + immutability flags set" || true
+    else
+        log_integrity_checkpoint "$CASE_FOLDER" "WRITE_BLOCKING" "WARNING" "Write blocking had warnings but continuing" || true
+    fi
+fi
 
 # Final decision
-if [ $APP_RESULT -eq 0 ] && [ $MEDIA_RESULT -eq 0 ]; then
+if [ $APP_RESULT -eq 0 ] && [ $MEDIA_RESULT -eq 0 ] && [ $DB_RESULT -eq 0 ]; then
     echo -e "\n${GREEN}════════════════════════════════════════════════════════════${NC}"
     echo -e "${GREEN}  ✓✓✓ ALL INTEGRITY CHECKS PASSED ✓✓✓${NC}"
     echo -e "${GREEN}════════════════════════════════════════════════════════════${NC}"
@@ -278,8 +442,10 @@ if [ $APP_RESULT -eq 0 ] && [ $MEDIA_RESULT -eq 0 ]; then
     echo -e "${GREEN}  DATABASES READY FOR ANALYSIS${NC}"
     echo -e "${GREEN}════════════════════════════════════════════════════════════${NC}"
     echo -e "${YELLOW}Remember: Always work on COPIES of the evidence files${NC}"
-
+    
+    log_integrity_checkpoint "$CASE_FOLDER" "ANALYSIS_READY" "SUCCESS" "All integrity checks passed, databases loaded" || true
     exit 0
 else
     handle_failure $APP_RESULT $MEDIA_RESULT
+    log_integrity_checkpoint "$CASE_FOLDER" "INTEGRITY_VERIFICATION" "FAILED" "Cannot proceed with analysis" || true
 fi
