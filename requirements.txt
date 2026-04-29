@@ -1,0 +1,5 @@
+# WA-Forensics Toolkit — Python Dependencies
+# Install with: pip3 install -r requirements.txt
+
+# Required for .crypt12 / .crypt14 / .crypt15 database decryption
+pycryptodome>=3.15.0

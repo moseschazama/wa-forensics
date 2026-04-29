@@ -1,0 +1,53 @@
+# =============================================================================
+#  WA-Forensics Toolkit — .gitignore
+#  IMPORTANT: Never commit real evidence or case data to a public repository
+# =============================================================================
+
+# ── Evidence & Case Data (NEVER commit real forensic data) ──────────────────
+cases/
+*.db
+*.db-wal
+*.db-shm
+*.crypt12
+*.crypt14
+*.crypt15
+*.key
+
+# ── Temporary files ──────────────────────────────────────────────────────────
+/tmp/
+temp/
+*.tmp
+*.bak
+
+# ── Generated Reports (may contain sensitive evidence) ───────────────────────
+reports/
+html/
+pdf/
+*.html
+*.pdf
+
+# ── Logs (contain investigator PII and case details) ─────────────────────────
+*.log
+logs/
+
+# ── Python ───────────────────────────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv/
+env/
+.env
+
+# ── OS / Editor artifacts ────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ── Screenshots (added manually, not auto-generated) ─────────────────────────
+# docs/screenshots/*.png  ← Uncomment to also ignore screenshots
