@@ -717,7 +717,7 @@ EOF
     fi
 }
 
-# Function to execute Analysis module
+# Function to execute Analysis
 run_analysis_module() {
     print_step "LAUNCHING ANALYSIS MODULE"
     
