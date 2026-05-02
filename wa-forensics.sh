@@ -1,84 +1,28 @@
 #!/usr/bin/env bash
 # =============================================================================
-#  WHATSAPP-FORENSICS TOOLKIT v9.0 — WhatsApp Digital Forensic Suite
-#  Single entry point for macOS and Linux
+#  WHATSAPP-FORENSICS TOOLKIT — WhatsApp Digital Forensic Suite
 # =============================================================================
 
 set -uo pipefail
 IFS=$'\n\t'
 
 # ─────────────────────────────────────────────────────────────────────────────
-# BOOTSTRAP — Auto-install and activate Python virtual environment
-# ─────────────────────────────────────────────────────────────────────────────
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-export SCRIPT_DIR
-
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-CYAN='\033[0;36m'
-RESET='\033[0m'
-BOLD='\033[1m'
-
-bootstrap() {
-    local venv_dir="${SCRIPT_DIR}/.venv"
-
-    if [[ ! -d "$venv_dir" ]] || [[ ! -f "${venv_dir}/bin/activate" ]]; then
-        echo -e "${BOLD}${CYAN}"
-        echo "╔══════════════════════════════════════════════════════╗"
-        echo "║  WA-Forensics Toolkit — First-Time Setup            ║"
-        echo "╚══════════════════════════════════════════════════════╝"
-        echo -e "${RESET}"
-        echo -e "${CYAN}[ℹ] Toolkit not yet installed. Running installer...${RESET}"
-        echo ""
-
-        if [[ ! -f "${SCRIPT_DIR}/install.sh" ]]; then
-            echo -e "${RED}[✘] install.sh not found. Please reinstall the toolkit.${RESET}"
-            exit 1
-        fi
-
-        bash "${SCRIPT_DIR}/install.sh"
-        if [[ $? -ne 0 ]]; then
-            echo -e "${RED}[✘] Installation failed. Please check the errors above.${RESET}"
-            exit 1
-        fi
-        echo ""
-    fi
-
-    # Activate virtual environment
-    local venv_path=""
-    if [[ -f "${SCRIPT_DIR}/.venv_path" ]]; then
-        venv_path=$(cat "${SCRIPT_DIR}/.venv_path")
-    fi
-
-    if [[ -n "$venv_path" ]] && [[ -f "${venv_path}/bin/activate" ]]; then
-        source "${venv_path}/bin/activate"
-    elif [[ -f "${SCRIPT_DIR}/.venv/bin/activate" ]]; then
-        source "${SCRIPT_DIR}/.venv/bin/activate"
-    fi
-
-    export VIRTUAL_ENV
-}
-
-bootstrap
-
-# ─────────────────────────────────────────────────────────────────────────────
 # GLOBALS & CONFIGURATION
 # ─────────────────────────────────────────────────────────────────────────────
-# SCRIPT_DIR already set in bootstrap, re-export for clarity
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export SCRIPT_DIR
 
-# Core directories
+# Define module scripts
+MODULE_ACQUISITION="${SCRIPT_DIR}/Acquisition.sh"
+MODULE_INTEGRITY="${SCRIPT_DIR}/Integrity.sh"
+MODULE_ANALYSIS="${SCRIPT_DIR}/Analysis.sh"
+export MODULE_ACQUISITION MODULE_INTEGRITY MODULE_ANALYSIS
+
 CASES_ROOT="${SCRIPT_DIR}/cases"
 LIB_DIR="${SCRIPT_DIR}/lib"
 TEMPLATES_DIR="${SCRIPT_DIR}/templates"
-export CASES_ROOT LIB_DIR TEMPLATES_DIR
 
-# Module scripts
-MODULE_ACQUISITION="${LIB_DIR}/acquisition.sh"
-MODULE_INTEGRITY="${LIB_DIR}/integrity.sh"
-export MODULE_ACQUISITION MODULE_INTEGRITY
+export CASES_ROOT LIB_DIR TEMPLATES_DIR
 
 TOOLKIT_VERSION="9.0.0"
 export TOOLKIT_VERSION
@@ -95,10 +39,16 @@ BADGE_ID=""
 WARRANT_NUM=""
 MSGSTORE_DB=""
 WA_DB=""
+INVESTIGATOR_PHONE=""
+PHONE_BRAND=""
+PHONE_MODEL=""
+PHONE_SERIAL=""
 
-# ✅ CORRECTED EXPORTS (with spaces, not underscores)
+
+#CORRECTED EXPORTS (with spaces, not underscores)
 export CURRENT_CASE CASE_DIR INVESTIGATOR ORGANIZATION CASE_DESC
 export EVIDENCE_SOURCE SUSPECT_PHONE BADGE_ID WARRANT_NUM
+export INVESTIGATOR_PHONE PHONE_BRAND PHONE_MODEL PHONE_SERIAL
 export MSGSTORE_DB WA_DB
 
 # Session tracking
@@ -135,9 +85,6 @@ export RED GREEN YELLOW CYAN BLUE MAGENTA WHITE RESET BOLD DIM NC
 # ─────────────────────────────────────────────────────────────────────────────
 # SOURCE MODULES
 # ─────────────────────────────────────────────────────────────────────────────
-source "${LIB_DIR}/cross_platform.sh" 2>/dev/null || {
-    echo "WARNING: Cannot find cross_platform.sh - some features may not work"
-}
 source "${LIB_DIR}/case_manager.sh" 2>/dev/null || {
     echo "ERROR: Cannot find case_manager.sh"
     exit 1
@@ -170,8 +117,8 @@ banner() {
 ║    ╚███╔███╔╝██║  ██║     ██║     ╚██████╔╝██║  ██║███████╗██║ ╚████║    ║
 ║     ╚══╝╚══╝ ╚═╝  ╚═╝     ╚═╝      ╚═════╝ ╚═╝  ╚═╝╚══════╝╚═╝  ╚═══╝    ║
 ╠══════════════════════════════════════════════════════════════════════════╣
-║          Digital Forensic Toolkit v9.0 — WhatsApp Analysis Suite         ║
-║          ACPO Compliant  •  Chain-of-Custody  •  Read-Only Mode          ║
+║          Digital Forensic Toolkit — WhatsApp Analysis Suite              ║
+║            •  Chain-of-Custody  •  Read-Only Mode          ║
 ╚══════════════════════════════════════════════════════════════════════════╝
 BANNER
     echo ""
@@ -189,8 +136,8 @@ log_action() {
     local entry="[${ts}] SESSION:${SESSION_ID} | ACTION: ${action} | ANALYST: ${INVESTIGATOR:-SYSTEM} | FILE: ${file} | RESULT: ${result}"
     
     if [[ -n "$CASE_DIR" ]]; then
-        echo "$entry" >> "${CASE_DIR}/logs/activity.log"
-        echo "$entry" >> "${CASE_DIR}/logs/chain_of_custody.log"
+        echo "$entry" >> "${CASE_DIR}/operations/logs/activity.log"
+        echo "$entry" >> "${CASE_DIR}/operations/logs/chain_of_custody.log"
     fi
     echo "$entry" >> "${CASES_ROOT}/global_audit.log" 2>/dev/null || true
 }
@@ -230,27 +177,13 @@ check_dependencies() {
     local missing=()
     
     # Check required system commands
-    for cmd in sqlite3 date awk sed grep python3; do
+    for cmd in sqlite3 sha256sum md5sum date awk sed grep python3; do
         command -v "$cmd" &>/dev/null || missing+=("$cmd")
     done
     
-    # Check for SHA-256 tool (platform-specific)
-    if ! command -v sha256sum &>/dev/null && ! command -v shasum &>/dev/null; then
-        missing+=("sha256sum or shasum")
-    fi
-    
-    # Check for MD5 tool (platform-specific)
-    if ! command -v md5sum &>/dev/null && ! command -v md5 &>/dev/null; then
-        missing+=("md5sum or md5")
-    fi
-    
     if [[ ${#missing[@]} -gt 0 ]]; then
         print_err "Missing required tools: ${missing[*]}"
-        if [[ "$OSTYPE" == "darwin"* ]]; then
-            print_info "Run: brew install sqlite3 python3"
-        else
-            print_info "Run: sudo apt-get install sqlite3 coreutils python3"
-        fi
+        print_info "Run: sudo apt-get install sqlite3 coreutils python3"
         exit 1
     fi
     
@@ -258,20 +191,27 @@ check_dependencies() {
     
     # Check for optional external modules
     echo ""
-    print_info "Scanning for modules..."
+    print_info "Scanning for external modules..."
     
-    echo -n "  Acquisition Module .... "
+    echo -n "  Acquisition Module (Acquisition.sh) .... "
     if [[ -f "$MODULE_ACQUISITION" ]]; then
-        echo -e "${GREEN}FOUND${RESET}"
+        echo -e "${GREEN}✓ FOUND${RESET}"
     else
-        echo -e "${YELLOW}NOT FOUND (auto-acquisition disabled)${RESET}"
+        echo -e "${YELLOW}○ NOT FOUND (auto-acquisition disabled)${RESET}"
     fi
     
-    echo -n "  Integrity Module ...... "
+    echo -n "  Integrity Module (Integrity.sh) ........ "
     if [[ -f "$MODULE_INTEGRITY" ]]; then
-        echo -e "${GREEN}FOUND${RESET}"
+        echo -e "${GREEN}✓ FOUND${RESET}"
     else
-        echo -e "${YELLOW}NOT FOUND (auto-verification disabled)${RESET}"
+        echo -e "${YELLOW}○ NOT FOUND (auto-verification disabled)${RESET}"
+    fi
+    
+    echo -n "  Analysis Module (Analysis.sh) .......... "
+    if [[ -f "$MODULE_ANALYSIS" ]]; then
+        echo -e "${GREEN}✓ FOUND${RESET}"
+    else
+        echo -e "${YELLOW}○ NOT FOUND${RESET}"
     fi
     
     echo ""
@@ -393,11 +333,10 @@ analysis_menu() {
         echo -e "${YELLOW}  Before analysis can begin, you must:${NC}"
         echo "    1. Acquire evidence from emulator/device"
         echo "    2. Pass integrity verification (SHA-256 check)"
-        echo "    3. Load verified databases"
         echo ""
         echo -e "${CYAN}  Proceed with evidence acquisition:${NC}"
         echo ""
-        echo -e "    ${GREEN}1${RESET}. Start Acquisition → Verification → Load (Full Process)"
+        echo -e "    ${GREEN}1${RESET}. Start Acquisition → Verification (Full Process)"
         echo -e "    ${CYAN}0${RESET}. Return to Main Menu"
         echo ""
         echo -e "${RED}  ⚠️  There is NO option to bypass verification.${NC}"
@@ -485,7 +424,7 @@ EOF
         esac
     fi
     
-    # ===== INTEGRITY VERIFIED - SHOW ANALYSIS MENU =====
+    # ===== INTEGRITY VERIFIED - SHOW ANALYSIS MENU (RENUMBERED 1-11) =====
     while true; do
         banner
         print_menu_header "FORENSIC ANALYSIS MENU"
@@ -510,44 +449,32 @@ EOF
         fi
         echo ""
         
-        echo -e "  ${WHITE}── DATABASE OPERATIONS ──────────────────────────${RESET}"
-        if [[ -z "$MSGSTORE_DB" ]] && [[ -z "$WA_DB" ]]; then
-            echo -e "    ${GREEN}1${RESET}. Load Evidence Databases ${YELLOW}(Required)${RESET}"
-        else
-            echo -e "    ${GREEN}1${RESET}. Manage Evidence Databases"
-        fi
-        echo "   2. View Database Schema"
-        echo "   3. Export All Tables (CSV/JSON)"
-        echo ""
         echo -e "  ${WHITE}── CORE ANALYSIS ────────────────────────────────${RESET}"
-        echo "   4. Communication Activity Profiling (Q1)"
-        echo "   5. Full Chat Reconstruction (Q2)"
-        echo "   6. Contact Identity Mapping (Q3)"
-        echo "   7. Media & File Reconstruction (Q4)"
-        echo "   8. Deleted Message Detection (Q5)"
-        echo "   9. URL & Link Extraction (Q6)"
-        echo "  10. Master Evidence Timeline (Q7)"
-        echo "  11. WAL Deleted Message Recovery (Q8)"
-        echo "  12. Run ALL Queries (Complete Analysis)"
+        echo -e "    ${GREEN}1${RESET}. Communication Activity Profiling (Q1)"
+        echo -e "    ${GREEN}2${RESET}. Full Chat Reconstruction (Q2)"
+        echo -e "    ${GREEN}3${RESET}. Contact Identity Mapping (Q3)"
+        echo -e "    ${GREEN}4${RESET}. Media & File Reconstruction (Q4)"
+        echo -e "    ${GREEN}5${RESET}. Deleted Message Detection (Q5)"
+        echo -e "    ${GREEN}6${RESET}. URL & Link Extraction (Q6)"
         echo ""
         echo -e "  ${WHITE}── CHAT EXPLORER ────────────────────────────────${RESET}"
-        echo "  13. Deep Dive: Specific Chat ID"
-        echo "  14. Search by Phone Number"
-        echo "  15. Export Chat Transcript"
+        echo -e "    ${GREEN}7${RESET}. Deep Dive: Specific Chat ID"
+        echo -e "    ${GREEN}8${RESET}. Search by Phone Number"
+        echo -e "    ${GREEN}9${RESET}. Export Chat Transcript"
         echo ""
         echo -e "  ${WHITE}── REPORTS & EVIDENCE ───────────────────────────${RESET}"
-        echo "  16. Generate HTML Report"
-        echo "  17. Generate PDF Report"
-        echo "  18. View Chain of Custody"
-        echo "  19. View Activity Log"
+        echo -e "    ${GREEN}10${RESET}. Generate HTML Report"
+        echo -e "    ${GREEN}11${RESET}. Generate PDF Report"
+        echo -e "    ${GREEN}12${RESET}. View Chain of Custody"
+        echo -e "    ${GREEN}13${RESET}. View Activity Log"
         echo ""
         echo -e "    ${CYAN}0${RESET}. Back to Main Menu"
         echo ""
         
         local valid=0
         while [[ $valid -eq 0 ]]; do
-            read -rp "  Select option (0-19): " choice
-            if validate_menu_input "$choice" 0 19; then
+            read -rp "  Select option (0-13): " choice
+            if validate_menu_input "$choice" 0 13; then
                 choice="$VALIDATED_CHOICE"
                 valid=1
             fi
@@ -555,66 +482,48 @@ EOF
         
         case "$choice" in
             1) 
-                if [[ -z "$MSGSTORE_DB" ]] && [[ -z "$WA_DB" ]]; then
-                    load_databases_interactive
-                else
-                    if confirm "Manage loaded databases?"; then
-                        load_databases_interactive
-                    fi
-                fi
-                ;;
-            2) view_schema ;;
-            3) export_raw_tables ;;
-            4) 
                 [[ -z "$MSGSTORE_DB" ]] && { print_err "msgstore.db required"; pause; } || analyze_activity_profiling
                 ;;
-            5) 
+            2) 
                 [[ -z "$MSGSTORE_DB" ]] && { print_err "msgstore.db required"; pause; } || analyze_chat_reconstruction
                 ;;
-            6) 
+            3) 
                 [[ -z "$MSGSTORE_DB" ]] && { print_err "msgstore.db required"; pause; } || analyze_contact_mapping
                 ;;
-            7) 
+            4) 
                 [[ -z "$MSGSTORE_DB" ]] && { print_err "msgstore.db required"; pause; } || analyze_media_reconstruction
                 ;;
-            8) 
+            5) 
                 [[ -z "$MSGSTORE_DB" ]] && { print_err "msgstore.db required"; pause; } || analyze_deleted_messages
                 ;;
-            9) 
+            6) 
                 [[ -z "$MSGSTORE_DB" ]] && { print_err "msgstore.db required"; pause; } || analyze_url_extraction
                 ;;
-            10) 
-                [[ -z "$MSGSTORE_DB" ]] && { print_err "msgstore.db required"; pause; } || analyze_master_timeline
-                ;;
-            11) 
-                [[ -z "$MSGSTORE_DB" ]] && { print_err "msgstore.db required"; pause; } || analyze_wal_recovery
-                ;;
-            12) 
-                [[ -z "$MSGSTORE_DB" ]] && { print_err "msgstore.db required"; pause; } || run_all_analyses
-                ;;
-            13) 
+            7) 
                 [[ -z "$MSGSTORE_DB" ]] && { print_err "msgstore.db required"; pause; } || chat_deep_dive_menu
                 ;;
-            14) 
+            8) 
                 [[ -z "$MSGSTORE_DB" ]] && { print_err "msgstore.db required"; pause; } || search_by_phone
                 ;;
-            15) 
+            9) 
                 [[ -z "$MSGSTORE_DB" ]] && { print_err "msgstore.db required"; pause; } || export_chat_transcript_menu
                 ;;
-            16) generate_html_report ;;
-            17) generate_pdf_report ;;
-            18) view_chain_of_custody ;;
-            19) view_activity_log ;;
+            10) generate_html_report ;;
+            11) generate_pdf_report ;;
+            12) view_chain_of_custody ;;
+            13) view_activity_log ;;
             0) return 0 ;;
+            *)
+                print_warn "Invalid option. Please try again."
+                pause
+                ;;
         esac
     done
 }
 # GLOBAL INPUT VALIDATION — Reusable across all menus
 # ─────────────────────────────────────────────────────────────────────────────
 
-# Usage: validate_menu_input <user_input> <min> <max>
-# Returns 0 if valid, 1 if invalid
-# Sets global $VALIDATED_CHOICE to the sanitized number
+
 VALIDATED_CHOICE=""
 validate_menu_input() {
     local input="$1"
@@ -683,7 +592,9 @@ run_acquisition_module() {
     
     if [[ ! -f "$MODULE_ACQUISITION" ]]; then
         print_err "Acquisition module not found: ${MODULE_ACQUISITION}"
-        log_action "MODULE NOT FOUND" "acquisition.sh" "FAILED"
+        echo -e "${YELLOW}  Place Acquisition.sh in the same directory as wa-forensics.sh${NC}"
+        echo -e "${YELLOW}  Expected location: ${SCRIPT_DIR}/Acquisition.sh${NC}"
+        log_action "MODULE NOT FOUND" "Acquisition.sh" "FAILED"
         return 1
     fi
     
@@ -691,8 +602,11 @@ run_acquisition_module() {
     echo -e "${CYAN}  This will connect to emulator and extract WhatsApp data${NC}"
     echo ""
     
+    # Make executable
     chmod +x "$MODULE_ACQUISITION" 2>/dev/null
     
+    # Execute acquisition script — export CASE_DIR/CASES_ROOT/SCRIPT_DIR so
+    # Acquisition.sh writes evidence into the existing case folder, not CWD
     CASE_DIR="$CASE_DIR" CASES_ROOT="$CASES_ROOT" SCRIPT_DIR="$SCRIPT_DIR" \
         bash "$MODULE_ACQUISITION"
     local result=$?
@@ -700,9 +614,13 @@ run_acquisition_module() {
     if [[ $result -eq 0 ]]; then
         print_ok "Acquisition module completed successfully"
 
+        # CASE_DIR was pre-set and Acquisition.sh wrote into it — just confirm.
+        # If somehow unset (standalone sub-case), find the newest folder created.
         if [[ -z "${CASE_DIR:-}" ]] || [[ ! -d "${CASE_DIR}" ]]; then
             local latest_case
             latest_case=$(ls -td "${CASES_ROOT}"/case_* 2>/dev/null | head -1)
+            [[ -z "$latest_case" ]] && \
+                latest_case=$(ls -td "${SCRIPT_DIR}"/case_* 2>/dev/null | head -1)
             if [[ -n "$latest_case" && -d "$latest_case" ]]; then
                 CASE_DIR="$latest_case"
                 CURRENT_CASE=$(basename "$latest_case")
@@ -729,7 +647,9 @@ run_integrity_module() {
     
     if [[ ! -f "$MODULE_INTEGRITY" ]]; then
         print_err "Integrity module not found: ${MODULE_INTEGRITY}"
-        log_action "MODULE NOT FOUND" "integrity.sh" "FAILED"
+        echo -e "${YELLOW}  Place Integrity.sh in the same directory as wa-forensics.sh${NC}"
+        echo -e "${YELLOW}  Expected location: ${SCRIPT_DIR}/Integrity.sh${NC}"
+        log_action "MODULE NOT FOUND" "Integrity.sh" "FAILED"
         return 1
     fi
     
@@ -744,15 +664,18 @@ run_integrity_module() {
     echo -e "${CYAN}  Verifying SHA-256 hashes and write protection${NC}"
     echo ""
     
+    # Make executable
     chmod +x "$MODULE_INTEGRITY" 2>/dev/null
     
+    # Execute integrity script with case folder as argument
     bash "$MODULE_INTEGRITY" "${CASE_DIR}"
     local result=$?
     
     if [[ $result -eq 0 ]]; then
-        print_ok "INTEGRITY VERIFICATION PASSED"
+        print_ok "✓ INTEGRITY VERIFICATION PASSED"
         echo -e "${GREEN}  Evidence is forensically sound - no tampering detected${NC}"
         
+        # Create verification flag file
         local flag_file="${CASE_DIR}/.integrity_verified"
         cat > "$flag_file" <<EOF
 INTEGRITY VERIFICATION RECORD
@@ -761,7 +684,7 @@ Verified: $(date '+%Y-%m-%d %H:%M:%S')
 Case: ${CURRENT_CASE}
 Case Folder: ${CASE_DIR}
 Analyst: ${INVESTIGATOR:-Unknown}
-Module: integrity.sh
+Module: Integrity.sh
 Result: PASSED
 Session: ${SESSION_ID}
 EOF
@@ -769,17 +692,19 @@ EOF
         log_action "INTEGRITY MODULE" "${CASE_DIR}" "SUCCESS"
         return 0
     else
-        print_err "INTEGRITY VERIFICATION FAILED"
+        print_err "✗ INTEGRITY VERIFICATION FAILED"
         echo ""
-        echo -e "${RED}EVIDENCE INTEGRITY COMPROMISED${NC}"
-        echo -e "${RED}  The acquired data has been modified or corrupted${NC}"
-        echo -e "${RED}  DO NOT use this evidence for analysis${NC}"
+        echo -e "${RED}╔════════════════════════════════════════════════════════════╗${NC}"
+        echo -e "${RED}║  ⚠️  EVIDENCE INTEGRITY COMPROMISED                       ║${NC}"
+        echo -e "${RED}║  The acquired data has been modified or corrupted         ║${NC}"
+        echo -e "${RED}║  DO NOT use this evidence for analysis                    ║${NC}"
+        echo -e "${RED}╚════════════════════════════════════════════════════════════╝${NC}"
         echo ""
         echo -e "${YELLOW}  Possible causes:${NC}"
-        echo "    - Files modified after acquisition"
-        echo "    - Storage corruption or disk errors"
-        echo "    - Incomplete or interrupted acquisition"
-        echo "    - Unauthorized access to evidence files"
+        echo "    • Files modified after acquisition"
+        echo "    • Storage corruption or disk errors"
+        echo "    • Incomplete or interrupted acquisition"
+        echo "    • Unauthorized access to evidence files"
         echo ""
         echo -e "${YELLOW}  Recommended actions:${NC}"
         echo "    1. Re-acquire evidence from original source"
@@ -787,12 +712,12 @@ EOF
         echo "    3. Do NOT perform analysis on this case"
         echo ""
         
-        log_action "INTEGRITY MODULE" "${CASE_DIR}" "FAILED - Evidence tampered"
+        log_action "INTEGRITY MODULE" "${CASE_DIR}" "FAILED — Evidence tampered"
         return 1
     fi
 }
 
-# Function to execute Analysis module
+# Function for the  Analysis
 run_analysis_module() {
     print_step "LAUNCHING ANALYSIS MODULE"
     
@@ -819,10 +744,8 @@ load_databases_from_case() {
     
     local db_found=false
     local search_paths=(
-        "${CASE_DIR}/com.whatsapp/databases"
-        "${CASE_DIR}/databases"
-        "${CASE_DIR}/raw"
-        "${CASE_DIR}"
+        "${CASE_DIR}/evidence/com.whatsapp/databases"
+        "${CASE_DIR}/operations/databases"
     )
     
     # Search for msgstore.db
