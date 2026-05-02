@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-#  WHATSAPP-FORENSICS TOOLKIT v9.0 — WhatsApp Digital Forensic Suite
+#  WHATSAPP-FORENSICS TOOLKIT — WhatsApp Digital Forensic Suite
 # =============================================================================
 
 set -uo pipefail
@@ -45,7 +45,7 @@ PHONE_MODEL=""
 PHONE_SERIAL=""
 
 
-# ✅ CORRECTED EXPORTS (with spaces, not underscores)
+#CORRECTED EXPORTS (with spaces, not underscores)
 export CURRENT_CASE CASE_DIR INVESTIGATOR ORGANIZATION CASE_DESC
 export EVIDENCE_SOURCE SUSPECT_PHONE BADGE_ID WARRANT_NUM
 export INVESTIGATOR_PHONE PHONE_BRAND PHONE_MODEL PHONE_SERIAL
@@ -118,7 +118,7 @@ banner() {
 ║     ╚══╝╚══╝ ╚═╝  ╚═╝     ╚═╝      ╚═════╝ ╚═╝  ╚═╝╚══════╝╚═╝  ╚═══╝    ║
 ╠══════════════════════════════════════════════════════════════════════════╣
 ║          Digital Forensic Toolkit — WhatsApp Analysis Suite              ║
-║          ACPO Compliant  •  Chain-of-Custody  •  Read-Only Mode          ║
+║            •  Chain-of-Custody  •  Read-Only Mode          ║
 ╚══════════════════════════════════════════════════════════════════════════╝
 BANNER
     echo ""
@@ -717,7 +717,7 @@ EOF
     fi
 }
 
-# Function to execute Analysis
+# Function for the  Analysis
 run_analysis_module() {
     print_step "LAUNCHING ANALYSIS MODULE"
     
