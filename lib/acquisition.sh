@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# WhatsApp Forensics Acquisition 
-# Evidence stored in evidence/ subfolder, operations/ excluded from hash
+# WhatsApp Forensics Acquisition Script
+
 
 GREEN="${GREEN:-\033[0;32m}"
 BLUE="${BLUE:-\033[0;34m}"
@@ -80,12 +80,12 @@ pull_data() {
 }
 
 echo -e "${BLUE}╔════════════════════════════════════════╗${NC}"
-echo -e "${BLUE}║ WHATSAPP FORENSICS ACQUISITION MODULE  ║${NC}"
+echo -e "${BLUE}║ WHATSAPP FORENSICS ACQUISITION         ║${NC}"
 echo -e "${BLUE}╚════════════════════════════════════════╝${NC}"
 
 check_emulator
 
-# PART 1: ACQUIRE DATA FROM EMULATOR 
+# PART 1: ACQUIRE DATA FROM EMULATOR
 while true; do
     echo -e "\n${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     read -rp "$(echo -e ${BLUE}"Press ENTER to acquire data from emulator..."${NC})"
@@ -136,7 +136,7 @@ while true; do
 done
 
 # ══════════════════════════════════════════════════════════════════════════
-# PHASE 1: FORENSIC WRITE PROTECTION 
+# PHASE 1: FORENSIC WRITE PROTECTION
 # ══════════════════════════════════════════════════════════════════════════
 echo -e "\n${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "${BLUE}[*] PHASE 1: APPLYING FORENSIC WRITE PROTECTION${NC}"
@@ -159,7 +159,7 @@ echo -e "${YELLOW}  → evidence/ subfolder is READ-ONLY${NC}"
 echo -e "${YELLOW}  → operations/ folder remains writable for logs/reports${NC}"
 
 # ══════════════════════════════════════════════════════════════════════════
-# PHASE 2: GENERATE SHA256 HASH VALUES
+# PHASE 2: GENERATE SHA256 HASH VALUES 
 # ══════════════════════════════════════════════════════════════════════════
 echo -e "\n${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "${GREEN}[*] PHASE 2: Generating SHA256 hash values...${NC}"
@@ -179,7 +179,7 @@ else
     HASH_MEDIA="FOLDER_NOT_FOUND"
 fi
 
-# Hash 3: ENTIRE evidence/ folder 
+# Hash 3: ENTIRE evidence/ folder
 HASH_FULL_CASE=$(find "$CASE_FOLDER/evidence" -type f -print0 2>/dev/null | sort -z | xargs -0 sha256sum 2>/dev/null | sha256sum | cut -d' ' -f1)
 
 # Save hashes to file (in operations/ folder)
