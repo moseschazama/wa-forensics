@@ -18,7 +18,7 @@ generate_html_report() {
     
     local ts=$(date '+%Y-%m-%d %H:%M:%S')
     
-    # ── Gather Statistics ────────────────────────────────────────────────
+    # ── Gather Statistic ────────────────────────────────────────────────
     print_info "Collecting case statistics..."
     
     local total_msgs=0 sent_msgs=0 recv_msgs=0 media_msgs=0 deleted_msgs=0 total_contacts=0 total_chats=0
@@ -256,9 +256,6 @@ EOF
     pause
 }
 
-# =============================================================================
-# OPTION 11 — GENERATE PDF REPORT
-# =============================================================================
 generate_pdf_report() {
     banner
     print_section "OPTION 11: GENERATING PDF REPORT"
